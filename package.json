@@ -1,0 +1,29 @@
+{
+  "name": "logseq-helper",
+  "version": "1.0.0",
+  "description": "A browser extension to capture text to Logseq and view related blocks",
+  "scripts": {
+    "package:chrome": "cd chrome-extension && zip -r ../dist/logseq-helper-chrome.zip . -x '*.DS_Store' -x '*.git*'",
+    "package:firefox": "cd firefox-extension && zip -r ../dist/logseq-helper-firefox.xpi . -x '*.DS_Store' -x '*.git*'",
+    "package:all": "mkdir -p dist && npm run package:chrome && npm run package:firefox",
+    "dev:firefox": "cd firefox-extension && npx web-ext run",
+    "build:firefox": "cd firefox-extension && npx web-ext build --overwrite-dest -a ../dist"
+  },
+  "devDependencies": {
+    "web-ext": "^7.11.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/logseq-helper"
+  },
+  "keywords": [
+    "logseq",
+    "chrome-extension",
+    "firefox-extension",
+    "note-taking",
+    "quick-capture",
+    "browser-extension"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logseq Helper Settings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <div class="logo">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          <span class="logo-text">Logseq Helper</span>
+        </div>
+        <div class="header-actions">
+          <button id="testConnectionBtn" class="btn btn-outlined" title="Test Connection">
+            <span class="material-icons">sync</span>
+            <span>Test</span>
+          </button>
+        </div>
+      </div>
+      <div id="connectionStatus" class="connection-status"></div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- API Settings Section -->
+      <section class="section">
+        <div class="section-header">
+          <span class="material-icons section-icon">settings</span>
+          <h2 class="section-title">API Connection</h2>
+        </div>
+        <div class="section-content">
+          <div class="form-group">
+            <label class="form-label" for="apiHost">
+              <span class="material-icons">link</span>
+              API Host
+            </label>
+            <input type="text" id="apiHost" class="form-input" placeholder="http://127.0.0.1:12315">
+            <span class="form-hint">Logseq HTTP API server address</span>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" for="apiToken">
+              <span class="material-icons">key</span>
+              API Token
+            </label>
+            <div class="input-with-action">
+              <input type="password" id="apiToken" class="form-input" placeholder="Enter your API token">
+              <button type="button" id="toggleToken" class="btn-icon" title="Toggle visibility">
+                <span class="material-icons">visibility</span>
+              </button>
+            </div>
+            <span class="form-hint">Found in Logseq → Settings → Features → HTTP APIs server</span>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" for="graphName">
+              <span class="material-icons">folder</span>
+              Graph Name
+            </label>
+            <div class="input-with-action">
+              <input type="text" id="graphName" class="form-input" placeholder="my-graph">
+              <button type="button" id="detectGraph" class="btn-icon" title="Auto-detect">
+                <span class="material-icons">autorenew</span>
+              </button>
+            </div>
+            <span class="form-hint">Name of your Logseq graph (for x-callback URLs)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Capture Settings Section -->
+      <section class="section">
+        <div class="section-header">
+          <span class="material-icons section-icon">save</span>
+          <h2 class="section-title">Capture Settings</h2>
+        </div>
+        <div class="section-content">
+          <div class="form-group">
+            <label class="form-label">
+              <span class="material-icons">location_on</span>
+              Capture Destination
+            </label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="captureDestination" value="journal" id="destJournal">
+                <span class="radio-custom"></span>
+                <span class="radio-text">Today's Journal</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="captureDestination" value="page" id="destPage">
+                <span class="radio-custom"></span>
+                <span class="radio-text">Specific Page</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-group" id="capturePageGroup" style="display: none;">
+            <label class="form-label" for="capturePageName">
+              <span class="material-icons">article</span>
+              Page Name
+            </label>
+            <input type="text" id="capturePageName" class="form-input" placeholder="Quick Capture">
+          </div>
+          
+          <div class="form-group" id="journalFormatGroup">
+            <label class="form-label" for="journalFormat">
+              <span class="material-icons">calendar_today</span>
+              Journal Date Format
+            </label>
+            <select id="journalFormat" class="form-input">
+              <option value="MMM do, yyyy">Dec 2nd, 2025 (default)</option>
+              <option value="yyyy-MM-dd">2025-12-02</option>
+              <option value="yyyy_MM_dd">2025_12_02</option>
+              <option value="MM-dd-yyyy">12-02-2025</option>
+              <option value="dd-MM-yyyy">02-12-2025</option>
+            </select>
+            <span class="form-hint">Must match your Logseq journal format (Settings → Editor → Journal date format)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Capture Formats Section -->
+      <section class="section">
+        <div class="section-header">
+          <span class="material-icons section-icon">format_shapes</span>
+          <h2 class="section-title">Capture Formats</h2>
+          <button id="addFormatBtn" class="btn btn-text">
+            <span class="material-icons">add</span>
+            Add Format
+          </button>
+        </div>
+        <div class="section-content">
+          <div id="formatsContainer" class="formats-container">
+            <!-- Formats will be rendered here -->
+          </div>
+          
+          <div class="format-variables">
+            <div class="variables-title">
+              <span class="material-icons">code</span>
+              Available Variables
+            </div>
+            <div class="variables-list">
+              <code>{{content}}</code>
+              <code>{{url}}</code>
+              <code>{{title}}</code>
+              <code>{{highlightUrl}}</code>
+              <code>{{date}}</code>
+              <code>{{time}}</code>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Keyboard Shortcuts Section -->
+      <section class="section">
+        <div class="section-header">
+          <span class="material-icons section-icon">keyboard</span>
+          <h2 class="section-title">Keyboard Shortcuts</h2>
+        </div>
+        <div class="section-content">
+          <div class="shortcut-item">
+            <span class="shortcut-description">Toggle Overlay Panel</span>
+            <kbd class="shortcut-keys">Ctrl + Shift + L</kbd>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <button id="saveBtn" class="btn btn-primary btn-full">
+        <span class="material-icons">save</span>
+        Save Settings
+      </button>
+    </footer>
+  </div>
+
+  <!-- Format Edit Modal -->
+  <div id="formatModal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">Edit Format</h3>
+        <button class="modal-close" id="closeModal">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="formatName">
+            <span class="material-icons">label</span>
+            Name
+          </label>
+          <input type="text" id="formatName" class="form-input" placeholder="e.g., TODO, Quote, Note">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="formatIcon">
+            <span class="material-icons">emoji_emotions</span>
+            Icon (Emoji)
+          </label>
+          <input type="text" id="formatIcon" class="form-input form-input-small" placeholder="📝" maxlength="4">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="formatTemplate">
+            <span class="material-icons">description</span>
+            Template
+          </label>
+          <textarea id="formatTemplate" class="form-textarea" rows="4" placeholder="TODO {{content}}"></textarea>
+          <span class="form-hint">Use variables like {{content}}, {{url}}, {{title}}, {{highlightUrl}}, {{date}}, {{time}}</span>
+        </div>
+        
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="formatEnabled" checked>
+            <span class="checkbox-custom"></span>
+            <span class="checkbox-text">Enabled in capture popup</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="deleteFormatBtn" class="btn btn-text btn-danger">
+          <span class="material-icons">delete</span>
+          Delete
+        </button>
+        <div class="modal-footer-actions">
+          <button id="cancelFormatBtn" class="btn btn-outlined">Cancel</button>
+          <button id="saveFormatBtn" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,335 @@
+// Browser API compatibility
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+
+// Logseq Helper - Popup/Settings Script
+
+let settings = null;
+let editingFormatId = null;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', init);
+
+async function init() {
+  // Load settings
+  settings = await browserAPI.runtime.sendMessage({ action: 'getSettings' });
+  
+  // Populate form
+  populateForm();
+  
+  // Set up event listeners
+  setupEventListeners();
+}
+
+function populateForm() {
+  // API Settings
+  document.getElementById('apiHost').value = settings.apiHost || '';
+  document.getElementById('apiToken').value = settings.apiToken || '';
+  document.getElementById('graphName').value = settings.graphName || '';
+  
+  // Capture Settings
+  if (settings.captureDestination === 'page') {
+    document.getElementById('destPage').checked = true;
+    document.getElementById('capturePageGroup').style.display = 'flex';
+    document.getElementById('journalFormatGroup').style.display = 'none';
+  } else {
+    document.getElementById('destJournal').checked = true;
+    document.getElementById('capturePageGroup').style.display = 'none';
+    document.getElementById('journalFormatGroup').style.display = 'flex';
+  }
+  document.getElementById('capturePageName').value = settings.capturePageName || 'Quick Capture';
+  document.getElementById('journalFormat').value = settings.journalFormat || 'MMM do, yyyy';
+  
+  // Render formats
+  renderFormats();
+}
+
+function renderFormats() {
+  const container = document.getElementById('formatsContainer');
+  container.innerHTML = settings.captureFormats.map(format => `
+    <div class="format-card ${format.enabled ? '' : 'disabled'}" data-format-id="${format.id}">
+      <span class="format-icon">${format.icon}</span>
+      <div class="format-info">
+        <div class="format-name">${format.name}</div>
+        <div class="format-preview">${truncateFormat(format.format)}</div>
+      </div>
+      <span class="format-status material-icons">${format.enabled ? 'check_circle' : 'cancel'}</span>
+    </div>
+  `).join('');
+  
+  // Add click handlers
+  container.querySelectorAll('.format-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const formatId = card.dataset.formatId;
+      openFormatModal(formatId);
+    });
+  });
+}
+
+function truncateFormat(format) {
+  const maxLength = 40;
+  const singleLine = format.replace(/\n/g, ' ').trim();
+  if (singleLine.length <= maxLength) return singleLine;
+  return singleLine.substring(0, maxLength) + '...';
+}
+
+function setupEventListeners() {
+  // Test connection
+  document.getElementById('testConnectionBtn').addEventListener('click', testConnection);
+  
+  // Toggle API token visibility
+  document.getElementById('toggleToken').addEventListener('click', () => {
+    const input = document.getElementById('apiToken');
+    const icon = document.getElementById('toggleToken').querySelector('.material-icons');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.textContent = 'visibility_off';
+    } else {
+      input.type = 'password';
+      icon.textContent = 'visibility';
+    }
+  });
+  
+  // Auto-detect graph name
+  document.getElementById('detectGraph').addEventListener('click', detectGraphName);
+  
+  // Capture destination change
+  document.querySelectorAll('input[name="captureDestination"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const pageGroup = document.getElementById('capturePageGroup');
+      const journalGroup = document.getElementById('journalFormatGroup');
+      if (e.target.value === 'page') {
+        pageGroup.style.display = 'flex';
+        journalGroup.style.display = 'none';
+      } else {
+        pageGroup.style.display = 'none';
+        journalGroup.style.display = 'flex';
+      }
+    });
+  });
+  
+  // Add format button
+  document.getElementById('addFormatBtn').addEventListener('click', () => {
+    openFormatModal(null);
+  });
+  
+  // Save button
+  document.getElementById('saveBtn').addEventListener('click', saveSettings);
+  
+  // Modal events
+  document.getElementById('closeModal').addEventListener('click', closeFormatModal);
+  document.querySelector('.modal-backdrop').addEventListener('click', closeFormatModal);
+  document.getElementById('cancelFormatBtn').addEventListener('click', closeFormatModal);
+  document.getElementById('saveFormatBtn').addEventListener('click', saveFormat);
+  document.getElementById('deleteFormatBtn').addEventListener('click', deleteFormat);
+}
+
+async function testConnection() {
+  const statusEl = document.getElementById('connectionStatus');
+  const btn = document.getElementById('testConnectionBtn');
+  
+  btn.disabled = true;
+  btn.querySelector('.material-icons').textContent = 'sync';
+  btn.querySelector('.material-icons').style.animation = 'spin 1s linear infinite';
+  
+  statusEl.classList.remove('success', 'error');
+  statusEl.classList.add('visible');
+  statusEl.innerHTML = '<span class="material-icons" style="font-size: 16px; vertical-align: middle;">hourglass_empty</span> Testing connection...';
+  
+  // Update settings temporarily for test
+  const tempSettings = {
+    ...settings,
+    apiHost: document.getElementById('apiHost').value,
+    apiToken: document.getElementById('apiToken').value
+  };
+  await browserAPI.runtime.sendMessage({ action: 'saveSettings', settings: tempSettings });
+  
+  const result = await browserAPI.runtime.sendMessage({ action: 'testConnection' });
+  
+  btn.disabled = false;
+  btn.querySelector('.material-icons').textContent = 'sync';
+  btn.querySelector('.material-icons').style.animation = '';
+  
+  if (result.success) {
+    statusEl.classList.add('success');
+    statusEl.innerHTML = '<span class="material-icons" style="font-size: 16px; vertical-align: middle;">check_circle</span> Connected successfully!';
+    
+    // Auto-fill graph name if detected
+    if (result.data?.name) {
+      document.getElementById('graphName').value = result.data.name;
+    }
+  } else {
+    statusEl.classList.add('error');
+    statusEl.innerHTML = `<span class="material-icons" style="font-size: 16px; vertical-align: middle;">error</span> Connection failed: ${result.error}`;
+  }
+  
+  // Hide after delay
+  setTimeout(() => {
+    statusEl.classList.remove('visible');
+  }, 5000);
+}
+
+async function detectGraphName() {
+  const btn = document.getElementById('detectGraph');
+  const input = document.getElementById('graphName');
+  
+  btn.disabled = true;
+  btn.querySelector('.material-icons').style.animation = 'spin 1s linear infinite';
+  
+  // Save current settings first
+  const tempSettings = {
+    ...settings,
+    apiHost: document.getElementById('apiHost').value,
+    apiToken: document.getElementById('apiToken').value
+  };
+  await browserAPI.runtime.sendMessage({ action: 'saveSettings', settings: tempSettings });
+  
+  const result = await browserAPI.runtime.sendMessage({ action: 'getGraphName' });
+  
+  btn.disabled = false;
+  btn.querySelector('.material-icons').style.animation = '';
+  
+  if (result.success && result.graphName) {
+    input.value = result.graphName;
+    showNotification('Graph name detected!', 'success');
+  } else {
+    showNotification('Could not detect graph name. Check your API connection.', 'error');
+  }
+}
+
+function openFormatModal(formatId) {
+  editingFormatId = formatId;
+  const modal = document.getElementById('formatModal');
+  const deleteBtn = document.getElementById('deleteFormatBtn');
+  
+  if (formatId) {
+    // Editing existing format
+    const format = settings.captureFormats.find(f => f.id === formatId);
+    if (!format) return;
+    
+    document.getElementById('modalTitle').textContent = 'Edit Format';
+    document.getElementById('formatName').value = format.name;
+    document.getElementById('formatIcon').value = format.icon;
+    document.getElementById('formatTemplate').value = format.format;
+    document.getElementById('formatEnabled').checked = format.enabled;
+    deleteBtn.style.display = 'flex';
+  } else {
+    // Creating new format
+    document.getElementById('modalTitle').textContent = 'Add Format';
+    document.getElementById('formatName').value = '';
+    document.getElementById('formatIcon').value = '📝';
+    document.getElementById('formatTemplate').value = '{{content}}\n  source:: [{{title}}]({{url}})';
+    document.getElementById('formatEnabled').checked = true;
+    deleteBtn.style.display = 'none';
+  }
+  
+  modal.classList.add('visible');
+}
+
+function closeFormatModal() {
+  const modal = document.getElementById('formatModal');
+  modal.classList.remove('visible');
+  editingFormatId = null;
+}
+
+function saveFormat() {
+  const name = document.getElementById('formatName').value.trim();
+  const icon = document.getElementById('formatIcon').value.trim() || '📝';
+  const format = document.getElementById('formatTemplate').value;
+  const enabled = document.getElementById('formatEnabled').checked;
+  
+  if (!name || !format) {
+    showNotification('Please fill in name and template', 'error');
+    return;
+  }
+  
+  if (editingFormatId) {
+    // Update existing
+    const index = settings.captureFormats.findIndex(f => f.id === editingFormatId);
+    if (index !== -1) {
+      settings.captureFormats[index] = {
+        ...settings.captureFormats[index],
+        name,
+        icon,
+        format,
+        enabled
+      };
+    }
+  } else {
+    // Add new
+    const id = 'custom-' + Date.now();
+    settings.captureFormats.push({
+      id,
+      name,
+      icon,
+      format,
+      enabled
+    });
+  }
+  
+  renderFormats();
+  closeFormatModal();
+  showNotification('Format saved! Remember to save settings.', 'success');
+}
+
+function deleteFormat() {
+  if (!editingFormatId) return;
+  
+  // Don't allow deleting if only one format remains
+  if (settings.captureFormats.length <= 1) {
+    showNotification('Cannot delete the last format', 'error');
+    return;
+  }
+  
+  settings.captureFormats = settings.captureFormats.filter(f => f.id !== editingFormatId);
+  renderFormats();
+  closeFormatModal();
+  showNotification('Format deleted! Remember to save settings.', 'success');
+}
+
+async function saveSettings() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-icons">hourglass_empty</span> Saving...';
+  
+  // Gather settings
+  settings.apiHost = document.getElementById('apiHost').value.trim() || 'http://127.0.0.1:12315';
+  settings.apiToken = document.getElementById('apiToken').value;
+  settings.graphName = document.getElementById('graphName').value.trim();
+  settings.captureDestination = document.querySelector('input[name="captureDestination"]:checked').value;
+  settings.capturePageName = document.getElementById('capturePageName').value.trim() || 'Quick Capture';
+  settings.journalFormat = document.getElementById('journalFormat').value;
+  
+  // Save
+  const result = await browserAPI.runtime.sendMessage({ action: 'saveSettings', settings });
+  
+  btn.disabled = false;
+  btn.innerHTML = '<span class="material-icons">save</span> Save Settings';
+  
+  if (result.success) {
+    showNotification('Settings saved successfully!', 'success');
+  } else {
+    showNotification('Failed to save settings', 'error');
+  }
+}
+
+function showNotification(message, type) {
+  const statusEl = document.getElementById('connectionStatus');
+  statusEl.classList.remove('success', 'error');
+  statusEl.classList.add('visible', type);
+  statusEl.innerHTML = `<span class="material-icons" style="font-size: 16px; vertical-align: middle;">${type === 'success' ? 'check_circle' : 'error'}</span> ${message}`;
+  
+  setTimeout(() => {
+    statusEl.classList.remove('visible');
+  }, 3000);
+}
+
+// Add CSS for spinning animation
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(style);
+
