@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logseq Helper Settings</title>
+  <title>Logseqy Settings</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="popup.css">
@@ -14,10 +14,10 @@
     <header class="header">
       <div class="header-content">
         <div class="logo">
-          <svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="20" r="2"/><path d="M6 12h4"/><path d="M14 12h4"/><path d="M12 6v4"/><path d="M12 14v4"/>
           </svg>
-          <span class="logo-text">Logseq Helper</span>
+          <span class="logo-text">Logseqy</span>
         </div>
         <div class="header-actions">
           <button id="testConnectionBtn" class="btn btn-outlined" title="Test Connection">
@@ -112,18 +112,17 @@
           </div>
           
           <div class="form-group" id="journalFormatGroup">
-            <label class="form-label" for="journalFormat">
+            <label class="form-label">
               <span class="material-icons">calendar_today</span>
               Journal Date Format
             </label>
-            <select id="journalFormat" class="form-input">
-              <option value="MMM do, yyyy">Dec 2nd, 2025 (default)</option>
-              <option value="yyyy-MM-dd">2025-12-02</option>
-              <option value="yyyy_MM_dd">2025_12_02</option>
-              <option value="MM-dd-yyyy">12-02-2025</option>
-              <option value="dd-MM-yyyy">02-12-2025</option>
-            </select>
-            <span class="form-hint">Must match your Logseq journal format (Settings → Editor → Journal date format)</span>
+            <div class="auto-detected-value">
+              <span id="detectedJournalFormat" class="detected-format">Detecting...</span>
+              <button type="button" id="refreshFormat" class="btn-icon" title="Refresh">
+                <span class="material-icons">refresh</span>
+              </button>
+            </div>
+            <span class="form-hint">Auto-detected from Logseq settings</span>
           </div>
         </div>
       </section>

@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Logseq Helper",
+  "name": "Logseqy",
   "version": "1.0.0",
-  "description": "A Firefox extension to capture text to Logseq and view related blocks",
+  "description": "Capture text to Logseq and view related blocks from any webpage",
   "browser_specific_settings": {
     "gecko": {
-      "id": "logseq-helper@example.com",
+      "id": "logseqy@example.com",
       "strict_min_version": "109.0"
     }
   },
@@ -51,7 +51,7 @@
         "default": "Ctrl+Shift+L",
         "mac": "Command+Shift+L"
       },
-      "description": "Toggle Logseq Helper overlay"
+      "description": "Toggle Logseqy overlay"
     }
   },
   "web_accessible_resources": [

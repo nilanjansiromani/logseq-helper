@@ -1,6 +1,3 @@
-// Browser API compatibility
-const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
-
 // Logseq Helper - Popup/Settings Script
 
 let settings = null;
@@ -11,13 +8,16 @@ document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
   // Load settings
-  settings = await browserAPI.runtime.sendMessage({ action: 'getSettings' });
+  settings = await browser.runtime.sendMessage({ action: 'getSettings' });
   
   // Populate form
   populateForm();
   
   // Set up event listeners
   setupEventListeners();
+  
+  // Auto-detect journal format
+  detectJournalFormat();
 }
 
 function populateForm() {
@@ -37,10 +37,75 @@ function populateForm() {
     document.getElementById('journalFormatGroup').style.display = 'flex';
   }
   document.getElementById('capturePageName').value = settings.capturePageName || 'Quick Capture';
-  document.getElementById('journalFormat').value = settings.journalFormat || 'MMM do, yyyy';
   
   // Render formats
   renderFormats();
+}
+
+async function detectJournalFormat() {
+  const formatEl = document.getElementById('detectedJournalFormat');
+  formatEl.textContent = 'Detecting...';
+  formatEl.className = 'detected-format loading';
+  
+  try {
+    const result = await browser.runtime.sendMessage({ action: 'getLogseqConfig' });
+    
+    if (result.success && result.config) {
+      const format = result.config.preferredDateFormat;
+      if (format) {
+        formatEl.textContent = format;
+        formatEl.className = 'detected-format';
+        
+        // Show example of today's date in this format
+        const today = new Date();
+        const example = formatDateExample(today, format);
+        formatEl.title = `Today: ${example}`;
+      } else {
+        formatEl.textContent = 'MMM do, yyyy (default)';
+        formatEl.className = 'detected-format';
+      }
+    } else {
+      formatEl.textContent = 'Could not detect - check connection';
+      formatEl.className = 'detected-format error';
+    }
+  } catch (error) {
+    formatEl.textContent = 'Error: ' + error.message;
+    formatEl.className = 'detected-format error';
+  }
+}
+
+// Simple date format example (for tooltip preview)
+function formatDateExample(date, pattern) {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  const dayOfWeek = date.getDay();
+  
+  const getOrdinal = (n) => {
+    if (n >= 11 && n <= 13) return 'th';
+    switch (n % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  };
+  
+  let result = pattern;
+  result = result.replace(/yyyy/g, year.toString());
+  result = result.replace(/yy/g, year.toString().slice(-2));
+  result = result.replace(/MMMM/g, ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][month]);
+  result = result.replace(/MMM/g, months[month]);
+  result = result.replace(/MM/g, String(month + 1).padStart(2, '0'));
+  result = result.replace(/EEEE/g, ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek]);
+  result = result.replace(/EEE/g, days[dayOfWeek]);
+  result = result.replace(/do/g, day + getOrdinal(day));
+  result = result.replace(/dd/g, String(day).padStart(2, '0'));
+  
+  return result;
 }
 
 function renderFormats() {
@@ -92,6 +157,9 @@ function setupEventListeners() {
   // Auto-detect graph name
   document.getElementById('detectGraph').addEventListener('click', detectGraphName);
   
+  // Refresh journal format detection
+  document.getElementById('refreshFormat').addEventListener('click', detectJournalFormat);
+  
   // Capture destination change
   document.querySelectorAll('input[name="captureDestination"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
@@ -141,9 +209,9 @@ async function testConnection() {
     apiHost: document.getElementById('apiHost').value,
     apiToken: document.getElementById('apiToken').value
   };
-  await browserAPI.runtime.sendMessage({ action: 'saveSettings', settings: tempSettings });
+  await browser.runtime.sendMessage({ action: 'saveSettings', settings: tempSettings });
   
-  const result = await browserAPI.runtime.sendMessage({ action: 'testConnection' });
+  const result = await browser.runtime.sendMessage({ action: 'testConnection' });
   
   btn.disabled = false;
   btn.querySelector('.material-icons').textContent = 'sync';
@@ -157,6 +225,9 @@ async function testConnection() {
     if (result.data?.name) {
       document.getElementById('graphName').value = result.data.name;
     }
+    
+    // Also refresh the journal format detection
+    detectJournalFormat();
   } else {
     statusEl.classList.add('error');
     statusEl.innerHTML = `<span class="material-icons" style="font-size: 16px; vertical-align: middle;">error</span> Connection failed: ${result.error}`;
@@ -181,9 +252,9 @@ async function detectGraphName() {
     apiHost: document.getElementById('apiHost').value,
     apiToken: document.getElementById('apiToken').value
   };
-  await browserAPI.runtime.sendMessage({ action: 'saveSettings', settings: tempSettings });
+  await browser.runtime.sendMessage({ action: 'saveSettings', settings: tempSettings });
   
-  const result = await browserAPI.runtime.sendMessage({ action: 'getGraphName' });
+  const result = await browser.runtime.sendMessage({ action: 'getGraphName' });
   
   btn.disabled = false;
   btn.querySelector('.material-icons').style.animation = '';
@@ -217,7 +288,7 @@ function openFormatModal(formatId) {
     document.getElementById('modalTitle').textContent = 'Add Format';
     document.getElementById('formatName').value = '';
     document.getElementById('formatIcon').value = '📝';
-    document.getElementById('formatTemplate').value = '{{content}}\n  source:: [{{title}}]({{url}})';
+    document.getElementById('formatTemplate').value = '{{content}} #quick-capture\nsource:: {{url}}';
     document.getElementById('formatEnabled').checked = true;
     deleteBtn.style.display = 'none';
   }
@@ -291,16 +362,15 @@ async function saveSettings() {
   btn.disabled = true;
   btn.innerHTML = '<span class="material-icons">hourglass_empty</span> Saving...';
   
-  // Gather settings
+  // Gather settings (journalFormat is now auto-detected, not saved)
   settings.apiHost = document.getElementById('apiHost').value.trim() || 'http://127.0.0.1:12315';
   settings.apiToken = document.getElementById('apiToken').value;
   settings.graphName = document.getElementById('graphName').value.trim();
   settings.captureDestination = document.querySelector('input[name="captureDestination"]:checked').value;
   settings.capturePageName = document.getElementById('capturePageName').value.trim() || 'Quick Capture';
-  settings.journalFormat = document.getElementById('journalFormat').value;
   
   // Save
-  const result = await browserAPI.runtime.sendMessage({ action: 'saveSettings', settings });
+  const result = await browser.runtime.sendMessage({ action: 'saveSettings', settings });
   
   btn.disabled = false;
   btn.innerHTML = '<span class="material-icons">save</span> Save Settings';
@@ -332,4 +402,3 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
-

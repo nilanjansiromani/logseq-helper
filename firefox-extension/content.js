@@ -1,31 +1,34 @@
-// Browser API compatibility
-const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
-
-// Logseq Helper - Content Script
+// Logseqy - Content Script
 
 let selectionPopup = null;
 let overlay = null;
 let isOverlayVisible = false;
 let captureFormats = [];
 
-// IconPark SVG Icons
+// Lucide SVG Icons (https://lucide.dev/)
 const ICONS = {
-  todo: '<svg viewBox="0 0 48 48" fill="none"><path d="M42 20v19a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3h21" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="m16 20 10 8L41 9" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  quote: '<svg viewBox="0 0 48 48" fill="none"><path d="M6 9h19v17H12l-6 9V9ZM29 9h13v17h-8l-5 9V9Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>',
-  note: '<svg viewBox="0 0 48 48" fill="none"><path d="M8 44V4h23l9 10.5V44H8Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M31 4v11h9M15 22h9M15 30h18" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  code: '<svg viewBox="0 0 48 48" fill="none"><path d="m16 13-11 11 11 11M32 13l11 11-11 11M28 4 21 44" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  clipboard: '<svg viewBox="0 0 48 48" fill="none"><path d="M17 6H8a2 2 0 0 0-2 2v34a2 2 0 0 0 2 2h32a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M17 6V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H19a2 2 0 0 1-2-2Z" stroke="currentColor" stroke-width="3"/><path d="M14 24h10M14 32h20" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>',
-  edit: '<svg viewBox="0 0 48 48" fill="none"><path d="M42 26v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h14" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 26.72V34h7.317L42 13.308 34.634 6 14 26.72Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>',
-  calendar: '<svg viewBox="0 0 48 48" fill="none"><rect x="4" y="8" width="40" height="36" rx="2" stroke="currentColor" stroke-width="3"/><path d="M4 20h40M16 4v8M32 4v8M16 30h4M24 30h4M32 30h4M16 36h4M24 36h4M32 36h4" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>',
-  link: '<svg viewBox="0 0 48 48" fill="none"><path d="M24 12H10a2 2 0 0 0-2 2v24a2 2 0 0 0 2 2h28a2 2 0 0 0 2-2V26" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M36 4h8v8M40 12 26 26" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  check: '<svg viewBox="0 0 48 48" fill="none"><path d="m10 24 10 10 20-20" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  checkSquare: '<svg viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="3" stroke="currentColor" stroke-width="3"/><path d="m16 24 6 6 12-12" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  square: '<svg viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="3" stroke="currentColor" stroke-width="3"/></svg>',
-  close: '<svg viewBox="0 0 48 48" fill="none"><path d="M14 14 34 34M14 34 34 14" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  arrowRight: '<svg viewBox="0 0 48 48" fill="none"><path d="M24 8 40 24 24 40M40 24H8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  send: '<svg viewBox="0 0 48 48" fill="none"><path d="M43 5 29 43l-7-15-15-7 36-16Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="m22 28 21-23" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  page: '<svg viewBox="0 0 48 48" fill="none"><path d="M8 44V4h23l9 10.5V44H8Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M31 4v11h9" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  time: '<svg viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="3"/><path d="M24 12v14l8 8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  todo: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  quote: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>',
+  note: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/></svg>',
+  code: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  clipboard: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
+  edit: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
+  calendar: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>',
+  link: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  check: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  checkSquare: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/></svg>',
+  square: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>',
+  close: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  arrowRight: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>',
+  send: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
+  page: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>',
+  time: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  layers: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 12.5-8.97 4.08a2 2 0 0 1-1.66 0L2.5 12.5"/><path d="m22 17.5-8.97 4.08a2 2 0 0 1-1.66 0L2.5 17.5"/></svg>',
+  chevronLeft: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+  chevronRight: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+  sun: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+  moon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+  graph: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="20" r="2"/><path d="M6 12h4"/><path d="M14 12h4"/><path d="M12 6v4"/><path d="M12 14v4"/></svg>',
 };
 
 // Get icon HTML
@@ -39,7 +42,7 @@ init();
 
 async function init() {
   // Load settings
-  const settings = await browserAPI.runtime.sendMessage({ action: 'getSettings' });
+  const settings = await browser.runtime.sendMessage({ action: 'getSettings' });
   captureFormats = settings.captureFormats || [];
   
   // Set up text selection listener
@@ -47,7 +50,7 @@ async function init() {
   document.addEventListener('keyup', handleTextSelection);
   
   // Listen for messages from background
-  browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'toggleOverlay') {
       toggleOverlay();
       sendResponse({ success: true });
@@ -61,6 +64,25 @@ async function init() {
       hideSelectionPopup();
     }
   });
+  
+  // Highlight captured text on page load
+  setTimeout(loadAndHighlightCapturedText, 1000);
+}
+
+// Load captured blocks and highlight them on page load
+async function loadAndHighlightCapturedText() {
+  try {
+    const result = await browser.runtime.sendMessage({
+      action: 'getCapturedBlocks',
+      url: window.location.href
+    });
+    
+    if (result.success && result.blocks && result.blocks.length > 0) {
+      highlightCapturedText(result.blocks);
+    }
+  } catch (error) {
+    console.log('Logseqy: Could not load highlights', error);
+  }
 }
 
 // Generate highlight URL (text fragment)
@@ -71,6 +93,11 @@ function generateHighlightUrl(selectedText) {
 
 // Handle text selection
 function handleTextSelection(e) {
+  // Don't show popup when overlay is open
+  if (isOverlayVisible) {
+    return;
+  }
+  
   // Small delay to ensure selection is complete
   setTimeout(() => {
     const selection = window.getSelection();
@@ -88,13 +115,17 @@ function handleTextSelection(e) {
 
 // Show selection popup
 async function showSelectionPopup(selectedText, rect) {
+  // Don't show popup when overlay is open
+  if (isOverlayVisible) return;
+  
   // Refresh settings
-  const settings = await browserAPI.runtime.sendMessage({ action: 'getSettings' });
+  const settings = await browser.runtime.sendMessage({ action: 'getSettings' });
   captureFormats = settings.captureFormats || [];
   
   hideSelectionPopup();
   
-  const enabledFormats = captureFormats.filter(f => f.enabled);
+  // Filter out quote format and only show enabled formats
+  const enabledFormats = captureFormats.filter(f => f.enabled && f.id !== 'quote');
   if (enabledFormats.length === 0) return;
   
   selectionPopup = document.createElement('div');
@@ -271,13 +302,13 @@ function generateDatePickerHTML(year, month, today) {
     <div class="lh-dp-backdrop"></div>
     <div class="lh-dp-container">
       <div class="lh-dp-header">
-        <span class="lh-dp-title">${getIcon('calendar', 16)} Set Deadline</span>
-        <button class="lh-dp-close lh-dp-cancel">${getIcon('close', 14)}</button>
+        <span class="lh-dp-title">${getIcon('calendar', 18)} Set Deadline</span>
+        <button class="lh-dp-close lh-dp-cancel">${getIcon('close', 16)}</button>
       </div>
       <div class="lh-dp-nav">
-        <button class="lh-dp-prev">‹</button>
+        <button class="lh-dp-prev">${getIcon('chevronLeft', 18)}</button>
         <span class="lh-dp-month">${months[month]} ${year}</span>
-        <button class="lh-dp-next">›</button>
+        <button class="lh-dp-next">${getIcon('chevronRight', 18)}</button>
       </div>
       <div class="lh-dp-weekdays">
         <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
@@ -333,7 +364,7 @@ async function performCapture(content, format) {
   showNotification('Capturing...', 'info');
   
   try {
-    const result = await browserAPI.runtime.sendMessage({
+    const result = await browser.runtime.sendMessage({
       action: 'captureToLogseq',
       data: {
         content,
@@ -347,9 +378,12 @@ async function performCapture(content, format) {
     console.log('Capture result:', result);
     
     if (result.success) {
-      showNotification('✓ Captured to Logseq!', 'success');
+      showNotification('Captured to Logseq!', 'success');
       hideSelectionPopup();
       window.getSelection().removeAllRanges();
+      
+      // Update highlights on page immediately
+      setTimeout(loadAndHighlightCapturedText, 500);
       
       // Refresh overlay if visible
       if (isOverlayVisible) {
@@ -381,7 +415,7 @@ function showNotification(message, type = 'info') {
   if (type === 'info') iconName = 'send';
   
   notification.innerHTML = `
-    <span class="lh-notification-icon">${getIcon(iconName, 16)}</span>
+    <span class="lh-notification-icon">${getIcon(iconName, 18)}</span>
     <span class="lh-notification-text">${message}</span>
   `;
   
@@ -411,6 +445,8 @@ async function toggleOverlay() {
 async function showOverlay() {
   hideOverlay();
   
+  const domain = new URL(window.location.href).hostname;
+  
   overlay = document.createElement('div');
   overlay.className = 'logseq-helper-overlay';
   overlay.innerHTML = `
@@ -418,58 +454,59 @@ async function showOverlay() {
     <div class="lh-overlay-panel">
       <div class="lh-overlay-header">
         <div class="lh-overlay-title">
-          <svg class="lh-overlay-logo" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-          </svg>
-          <span>Logseq Helper</span>
+          ${getIcon('graph', 24)}
+          <span>Logseqy</span>
         </div>
-        <button class="lh-overlay-close" title="Close (Ctrl+Shift+L)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6L6 18M6 6l12 12"/>
-          </svg>
-        </button>
+        <div class="lh-header-actions">
+          <button class="lh-theme-toggle" id="lh-theme-toggle" title="Toggle theme">
+            <span class="lh-theme-icon-dark">${getIcon('sun', 18)}</span>
+            <span class="lh-theme-icon-light">${getIcon('moon', 18)}</span>
+          </button>
+          <button class="lh-overlay-close" title="Close (Ctrl+Shift+L)">
+            ${getIcon('close', 20)}
+          </button>
+        </div>
       </div>
       
       <div class="lh-overlay-content">
-        <!-- Section 1: TODOs -->
+        <!-- Section 1: TODOs from this page -->
         <div class="lh-section">
           <div class="lh-section-header">
-            <span class="lh-section-icon">${getIcon('todo', 14)}</span>
-            <span class="lh-section-title">TODOs</span>
+            ${getIcon('todo', 16)}
+            <span class="lh-section-title">Tasks</span>
           </div>
           <div class="lh-section-content" id="lh-todos-container">
             <div class="lh-loading">
               <div class="lh-loading-spinner"></div>
+              <span>Loading...</span>
             </div>
           </div>
         </div>
         
-        <!-- Section 2: User Notes -->
+        <!-- Section 2: Captured from this page -->
         <div class="lh-section">
           <div class="lh-section-header">
-            <span class="lh-section-icon">${getIcon('edit', 14)}</span>
-            <span class="lh-section-title">User Notes</span>
-          </div>
-          <div class="lh-section-content lh-notes-container" id="lh-notes-container">
-            <textarea id="lh-user-note" class="lh-note-textarea" placeholder="Type your note here..." rows="3"></textarea>
-            <div class="lh-note-actions">
-              <button id="lh-insert-note" class="lh-note-btn lh-note-btn-primary">
-                ${getIcon('send', 12)}
-                Insert
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Section 3: Captured -->
-        <div class="lh-section">
-          <div class="lh-section-header">
-            <span class="lh-section-icon">${getIcon('clipboard', 14)}</span>
-            <span class="lh-section-title">Captured</span>
+            ${getIcon('clipboard', 16)}
+            <span class="lh-section-title">Captured from this page</span>
           </div>
           <div class="lh-section-content lh-blocks-container" id="lh-blocks-container">
             <div class="lh-loading">
               <div class="lh-loading-spinner"></div>
+              <span>Loading...</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Section 3: Related from domain -->
+        <div class="lh-section">
+          <div class="lh-section-header">
+            ${getIcon('link', 16)}
+            <span class="lh-section-title">Related captured from ${domain}</span>
+          </div>
+          <div class="lh-section-content lh-blocks-container" id="lh-related-container">
+            <div class="lh-loading">
+              <div class="lh-loading-spinner"></div>
+              <span>Loading...</span>
             </div>
           </div>
         </div>
@@ -487,8 +524,14 @@ async function showOverlay() {
   overlay.querySelector('.lh-overlay-close').addEventListener('click', hideOverlay);
   overlay.querySelector('.lh-overlay-backdrop').addEventListener('click', hideOverlay);
   
-  // Insert note button
-  overlay.querySelector('#lh-insert-note').addEventListener('click', insertUserNote);
+  // Theme toggle
+  overlay.querySelector('#lh-theme-toggle').addEventListener('click', toggleTheme);
+  
+  // Load saved theme
+  const savedTheme = localStorage.getItem('lh-theme') || 'dark';
+  if (savedTheme === 'light') {
+    overlay.querySelector('.lh-overlay-panel').classList.add('lh-light-theme');
+  }
   
   // Keyboard shortcuts
   document.addEventListener('keydown', handleOverlayKeydown);
@@ -496,10 +539,11 @@ async function showOverlay() {
   // Animate in
   setTimeout(() => overlay.classList.add('lh-overlay-show'), 10);
   
-  // Load all sections
+  // Load all sections - query Logseq when modal opens
   await Promise.all([
     loadTodosForOverlay(),
-    loadCapturedForOverlay()
+    loadCapturedForOverlay(),
+    loadRelatedForOverlay()
   ]);
 }
 
@@ -508,6 +552,13 @@ function handleOverlayKeydown(e) {
   if (e.key === 'Escape') {
     hideOverlay();
   }
+}
+
+// Toggle light/dark theme
+function toggleTheme() {
+  const panel = overlay.querySelector('.lh-overlay-panel');
+  const isLight = panel.classList.toggle('lh-light-theme');
+  localStorage.setItem('lh-theme', isLight ? 'light' : 'dark');
 }
 
 // Hide overlay
@@ -524,93 +575,60 @@ function hideOverlay() {
     }, 300);
   }
   isOverlayVisible = false;
-}
-
-// Insert user note to Logseq
-async function insertUserNote() {
-  const textarea = document.getElementById('lh-user-note');
-  const content = textarea.value.trim();
-  
-  if (!content) {
-    showNotification('Please enter a note first', 'error');
-    return;
-  }
-  
-  const btn = document.getElementById('lh-insert-note');
-  btn.disabled = true;
-  btn.innerHTML = '<span>Inserting...</span>';
-  
-  try {
-    const result = await browserAPI.runtime.sendMessage({
-      action: 'captureToLogseq',
-      data: {
-        content: content,
-        format: '{{content}}\n  source:: [{{title}}]({{url}})',
-        pageUrl: window.location.href,
-        pageTitle: document.title,
-        highlightUrl: window.location.href
-      }
-    });
-    
-    if (result.success) {
-      showNotification('✓ Note inserted to Logseq!', 'success');
-      textarea.value = '';
-    } else {
-      showNotification(`Error: ${result.error}`, 'error');
-    }
-  } catch (error) {
-    showNotification(`Error: ${error.message}`, 'error');
-  }
-  
-  btn.disabled = false;
-  btn.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-      <path d="M12 5v14M5 12h14"/>
-    </svg>
-    Insert to Logseq
-  `;
+  // Keep highlights visible after closing overlay
 }
 
 // Load TODOs for overlay
 async function loadTodosForOverlay() {
   const container = document.getElementById('lh-todos-container');
+  const section = container?.closest('.lh-section');
   if (!container) return;
   
-  // Get locally captured blocks for this URL
-  const result = await browserAPI.runtime.sendMessage({
+  // Query Logseq for blocks with #quick-capture and source:: matching this URL
+  console.log('Loading TODOs for URL:', window.location.href);
+  const result = await browser.runtime.sendMessage({
     action: 'getCapturedBlocks',
     url: window.location.href
   });
+  console.log('TODOs query result:', result);
+  
+  if (!result.success) {
+    // Hide the entire section on error
+    if (section) section.style.display = 'none';
+    return;
+  }
+  
   const allBlocks = result.blocks || [];
   
-  // Filter only TODO blocks
+  // Filter only TODO blocks (case-insensitive, can be anywhere in content)
   const todos = allBlocks.filter(block => {
     const content = block.content || '';
-    return content.match(/^(TODO|DOING|NOW|LATER|DONE|WAITING)\s/m);
+    return content.match(/\b(TODO|DOING|NOW|LATER|DONE|WAITING)\b/i);
   });
   
   if (todos.length === 0) {
-    container.innerHTML = `
-      <div class="lh-empty-state-small">
-        ${getIcon('todo', 20)}
-        <span class="lh-empty-text-small">No TODOs captured from this page</span>
-      </div>
-    `;
+    // Hide the entire tasks section if no tasks
+    if (section) section.style.display = 'none';
     return;
   }
   
   container.innerHTML = todos.map((block, index) => {
     const content = block.content || '';
-    const isDone = content.match(/^DONE\s/m);
-    const todoText = content.replace(/^(TODO|DOING|NOW|LATER|DONE|WAITING)\s/m, '').split('\n')[0];
+    const isDone = content.match(/\bDONE\b/i);
+    // Extract TODO text, removing status marker and #quick-capture tag
+    let todoText = content
+      .replace(/\b(TODO|DOING|NOW|LATER|DONE|WAITING)\b/i, '')
+      .split('\n')[0]
+      .replace(/#quick-capture/g, '')
+      .trim();
     
     return `
       <div class="lh-todo-item ${isDone ? 'lh-todo-done' : ''}" style="animation-delay: ${index * 30}ms">
-        <span class="lh-todo-checkbox">${isDone ? getIcon('checkSquare', 16) : getIcon('square', 16)}</span>
+        <span class="lh-todo-checkbox">${isDone ? getIcon('checkSquare', 18) : getIcon('square', 18)}</span>
         <span class="lh-todo-text">${escapeHtml(todoText)}</span>
         ${block.logseqUrl ? `
           <a href="${block.logseqUrl}" class="lh-todo-link" title="Open in Logseq">
-            ${getIcon('link', 14)}
+            ${getIcon('link', 16)}
           </a>
         ` : ''}
       </div>
@@ -623,23 +641,36 @@ async function loadCapturedForOverlay() {
   const container = document.getElementById('lh-blocks-container');
   if (!container) return;
   
-  // Get locally captured blocks for this URL
-  const result = await browserAPI.runtime.sendMessage({
+  // Query Logseq for blocks with #quick-capture and source:: matching this URL
+  console.log('Loading captured blocks for URL:', window.location.href);
+  const result = await browser.runtime.sendMessage({
     action: 'getCapturedBlocks',
     url: window.location.href
   });
+  console.log('Captured blocks query result:', result);
+  
+  if (!result.success) {
+    container.innerHTML = `
+      <div class="lh-empty-state-small">
+        ${getIcon('clipboard', 24)}
+        <span class="lh-empty-text-small">Error: ${result.error || 'Could not query Logseq'}</span>
+      </div>
+    `;
+    return;
+  }
+  
   const allBlocks = result.blocks || [];
   
   // Filter out TODO blocks (they're shown in the TODOs section)
   const blocks = allBlocks.filter(block => {
     const content = block.content || '';
-    return !content.match(/^(TODO|DOING|NOW|LATER|DONE|WAITING)\s/m);
+    return !content.match(/\b(TODO|DOING|NOW|LATER|DONE|WAITING)\b/i);
   });
   
   if (blocks.length === 0) {
     container.innerHTML = `
       <div class="lh-empty-state-small">
-        ${getIcon('clipboard', 20)}
+        ${getIcon('clipboard', 24)}
         <span class="lh-empty-text-small">No content captured yet. Select text to capture!</span>
       </div>
     `;
@@ -647,42 +678,222 @@ async function loadCapturedForOverlay() {
   }
   
   container.innerHTML = blocks.map((block, index) => `
-    <div class="lh-block-card" style="animation-delay: ${index * 50}ms">
+    <div class="lh-block-item" style="animation-delay: ${index * 50}ms">
       <div class="lh-block-content">
-        ${renderMarkdown(block.content || block['block/content'] || '')}
+        ${renderMarkdown(stripSource(block.content || block['block/content'] || ''))}
       </div>
-      <div class="lh-block-meta">
-        ${block.targetPage || block['block/page']?.['page/original-name'] ? `
-          <span class="lh-block-page">
-            ${getIcon('page', 12)}
-            ${escapeHtml(block.targetPage || block['block/page']?.['page/original-name'] || 'Unknown')}
-          </span>
-        ` : ''}
-        ${block.capturedAt ? `
-          <span class="lh-block-date">
-            ${getIcon('time', 12)}
-            ${formatDate(block.capturedAt)}
-          </span>
-        ` : ''}
+      ${block.logseqUrl ? `
+        <a href="${block.logseqUrl}" class="lh-block-link" title="Open in Logseq">
+          ${getIcon('link', 12)} open in logseq
+        </a>
+      ` : ''}
+    </div>
+  `).join('');
+  
+  // Highlight captured text on the page
+  highlightCapturedText(allBlocks);
+}
+
+// Highlight captured text on the page
+function highlightCapturedText(blocks) {
+  // Remove existing highlights first
+  removeAllHighlights();
+  
+  const textsToHighlight = [];
+  
+  blocks.forEach(block => {
+    const content = block.content || '';
+    // Extract the actual captured text (remove TODO/markers, tags, source line)
+    let capturedText = content
+      .replace(/^(TODO|DOING|NOW|LATER|DONE|WAITING)\s*/i, '')
+      .replace(/#quick-capture/g, '')
+      .split('\n')
+      .filter(line => !line.trim().startsWith('source::'))
+      .join(' ')
+      .replace(/^>\s*/, '') // Remove quote marker
+      .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+      .trim();
+    
+    if (capturedText.length > 5) {
+      textsToHighlight.push(capturedText);
+    }
+  });
+  
+  if (textsToHighlight.length > 0) {
+    highlightTextsOnPage(textsToHighlight);
+  }
+}
+
+// Remove all highlights
+function removeAllHighlights() {
+  document.querySelectorAll('.lh-captured-highlight').forEach(el => {
+    const parent = el.parentNode;
+    if (parent) {
+      parent.replaceChild(document.createTextNode(el.textContent), el);
+      parent.normalize();
+    }
+  });
+}
+
+// Find and highlight multiple texts on the page using CSS highlight or mark
+function highlightTextsOnPage(textsToHighlight) {
+  // Use window.find or manual DOM search
+  textsToHighlight.forEach(searchText => {
+    const normalizedSearch = searchText.toLowerCase().trim();
+    if (normalizedSearch.length < 5) return;
+    
+    // Try to find and highlight using Range API
+    findAndHighlightText(normalizedSearch);
+  });
+}
+
+// Find text in page and highlight it
+function findAndHighlightText(searchText) {
+  const bodyText = document.body.innerText.toLowerCase();
+  
+  // Check if the text exists on the page
+  if (!bodyText.includes(searchText.substring(0, 50).toLowerCase())) {
+    return;
+  }
+  
+  // Walk through all text nodes
+  const walker = document.createTreeWalker(
+    document.body,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: function(node) {
+        // Skip our UI, scripts, styles
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        if (parent.closest('.logseq-helper-overlay, .lh-selection-popup, .lh-notification, .lh-date-picker, script, style, noscript, iframe')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        if (parent.classList.contains('lh-captured-highlight')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    }
+  );
+  
+  const textNodes = [];
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode);
+  }
+  
+  // Get first few words to search (more likely to match)
+  const words = searchText.split(/\s+/);
+  const searchPhrases = [];
+  
+  // Add progressively smaller phrases
+  if (words.length >= 5) {
+    searchPhrases.push(words.slice(0, 5).join(' '));
+  }
+  if (words.length >= 3) {
+    searchPhrases.push(words.slice(0, 3).join(' '));
+  }
+  
+  // Also add the full text if it's not too long
+  if (searchText.length <= 100) {
+    searchPhrases.unshift(searchText);
+  }
+  
+  for (const phrase of searchPhrases) {
+    const lowerPhrase = phrase.toLowerCase();
+    if (lowerPhrase.length < 5) continue;
+    
+    for (const node of textNodes) {
+      const nodeText = node.textContent;
+      const lowerNodeText = nodeText.toLowerCase();
+      
+      const index = lowerNodeText.indexOf(lowerPhrase);
+      if (index !== -1) {
+        // Found a match - highlight this node
+        try {
+          const span = document.createElement('span');
+          span.className = 'lh-captured-highlight';
+          
+          // If the match is partial, we highlight the whole node for simplicity
+          span.textContent = nodeText;
+          
+          if (node.parentNode) {
+            node.parentNode.replaceChild(span, node);
+          }
+          return; // Found and highlighted, move to next search text
+        } catch (e) {
+          console.log('Highlight error:', e);
+        }
+      }
+    }
+  }
+}
+
+// Load related blocks from the same domain
+async function loadRelatedForOverlay() {
+  const container = document.getElementById('lh-related-container');
+  if (!container) return;
+  
+  const result = await browser.runtime.sendMessage({
+    action: 'getRelatedBlocks',
+    url: window.location.href
+  });
+  
+  if (!result.success) {
+    container.innerHTML = `
+      <div class="lh-empty-state-small">
+        ${getIcon('link', 24)}
+        <span class="lh-empty-text-small">Could not load related content</span>
       </div>
-      <div class="lh-block-actions">
-        ${block.highlightUrl ? `
-          <a href="${block.highlightUrl}" class="lh-block-action" title="Jump to highlight">
-            ${getIcon('arrowRight', 12)}
-          </a>
-        ` : ''}
-        ${block.logseqUrl ? `
-          <a href="${block.logseqUrl}" class="lh-block-action lh-action-primary" title="Open in Logseq">
-            ${getIcon('link', 12)}
-            Open
-          </a>
-        ` : ''}
+    `;
+    return;
+  }
+  
+  // Filter out blocks from the current page (already shown in "Captured" section)
+  // Use exact URL match - if the content contains the current URL, exclude it
+  const currentUrl = window.location.href;
+  
+  const blocks = (result.blocks || []).filter(block => {
+    const content = block.content || '';
+    // Exclude if this block's source contains the exact current URL
+    return !content.includes(currentUrl);
+  });
+  
+  if (blocks.length === 0) {
+    container.innerHTML = `
+      <div class="lh-empty-state-small">
+        ${getIcon('link', 24)}
+        <span class="lh-empty-text-small">No other captures from this site</span>
       </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = blocks.map((block, index) => `
+    <div class="lh-block-item" style="animation-delay: ${index * 50}ms">
+      <div class="lh-block-content">
+        ${renderMarkdown(stripSource(block.content || ''))}
+      </div>
+      ${block.logseqUrl ? `
+        <a href="${block.logseqUrl}" class="lh-block-link" title="Open in Logseq">
+          ${getIcon('link', 12)} open in logseq
+        </a>
+      ` : ''}
     </div>
   `).join('');
 }
 
 // Utility functions
+
+// Strip source:: line and #quick-capture from content for display
+function stripSource(content) {
+  return content
+    .split('\n')
+    .filter(line => !line.trim().startsWith('source::'))
+    .join('\n')
+    .replace(/#quick-capture/g, '')
+    .trim();
+}
+
 function truncateUrl(url) {
   const maxLength = 50;
   if (url.length <= maxLength) return url;
@@ -753,4 +964,3 @@ function renderMarkdown(text) {
     return escapeHtml(text).replace(/\n/g, '<br>');
   }
 }
-

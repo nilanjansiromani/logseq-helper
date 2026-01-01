@@ -651,3 +651,31 @@ body {
   background: var(--md-on-surface-variant);
 }
 
+/* ===== Auto-detected Value Display ===== */
+.auto-detected-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline);
+  border-radius: var(--md-radius-sm);
+}
+
+.detected-format {
+  flex: 1;
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 13px;
+  color: var(--md-on-surface);
+  font-weight: 500;
+}
+
+.detected-format.loading {
+  color: var(--md-on-surface-variant);
+  font-style: italic;
+}
+
+.detected-format.error {
+  color: var(--md-error);
+}
+

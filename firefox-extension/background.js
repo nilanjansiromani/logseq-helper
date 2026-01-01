@@ -1,7 +1,4 @@
-// Logseq Helper - Background Script (Firefox)
-
-// Browser API compatibility
-const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+// Logseqy - Background Service Worker
 
 // Default settings
 const DEFAULT_SETTINGS = {
@@ -10,65 +7,52 @@ const DEFAULT_SETTINGS = {
   graphName: '',
   captureDestination: 'journal', // 'journal' or 'page'
   capturePageName: 'Quick Capture',
-  journalFormat: 'MMM do, yyyy', // 'MMM do, yyyy' (Dec 2nd, 2025) or 'yyyy-MM-dd' (2025-12-02)
   captureFormats: [
     {
       id: 'todo',
       name: 'TODO',
       enabled: true,
-      format: 'TODO {{content}}\nsource:: [{{title}}]({{url}})',
+      format: 'TODO {{content}} #quick-capture\nsource:: {{url}}',
       icon: 'todo'
-    },
-    {
-      id: 'quote',
-      name: 'Quote',
-      enabled: true,
-      format: '> {{content}}',
-      icon: 'quote'
     },
     {
       id: 'note',
       name: 'Note',
       enabled: true,
-      format: '{{content}}\nsource:: [{{title}}]({{url}})',
+      format: '{{content}} #quick-capture\nsource:: {{url}}',
       icon: 'note'
     },
     {
       id: 'code',
       name: 'Code',
       enabled: true,
-      format: '🌐 : {{url}}\n```js\n{{content}}\n```',
+      format: '```\n{{content}}\n```\n#quick-capture\nsource:: {{url}}',
       icon: 'code'
     }
   ]
 };
 
 // Initialize settings on install
-browserAPI.runtime.onInstalled.addListener(async () => {
-  const stored = await browserAPI.storage.sync.get('settings');
+browser.runtime.onInstalled.addListener(async () => {
+  const stored = await browser.storage.sync.get('settings');
   if (!stored.settings) {
-    await browserAPI.storage.sync.set({ settings: DEFAULT_SETTINGS });
-  }
-  
-  // Initialize captured blocks storage
-  const capturedBlocks = await browserAPI.storage.local.get('capturedBlocks');
-  if (!capturedBlocks.capturedBlocks) {
-    await browserAPI.storage.local.set({ capturedBlocks: [] });
+    await browser.storage.sync.set({ settings: DEFAULT_SETTINGS });
   }
 });
 
 // Listen for keyboard shortcut
-browserAPI.commands.onCommand.addListener(async (command) => {
+browser.commands.onCommand.addListener((command) => {
   if (command === 'toggle-overlay') {
-    const tabs = await browserAPI.tabs.query({ active: true, currentWindow: true });
-    if (tabs[0]) {
-      browserAPI.tabs.sendMessage(tabs[0].id, { action: 'toggleOverlay' });
-    }
+    browser.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        browser.tabs.sendMessage(tabs[0].id, { action: 'toggleOverlay' });
+      }
+    });
   }
 });
 
 // Message handling
-browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   handleMessage(request, sender).then(sendResponse);
   return true; // Keep channel open for async response
 });
@@ -97,7 +81,13 @@ async function handleMessage(request, sender) {
       return getGraphName();
     
     case 'getCapturedBlocks':
-      return getCapturedBlocks(request.url);
+      return getCapturedBlocksFromLogseq(request.url);
+    
+    case 'getRelatedBlocks':
+      return getRelatedBlocksFromDomain(request.url);
+    
+    case 'getLogseqConfig':
+      return getLogseqConfig();
     
     default:
       return { success: false, error: 'Unknown action' };
@@ -105,7 +95,7 @@ async function handleMessage(request, sender) {
 }
 
 async function getSettings() {
-  const stored = await browserAPI.storage.sync.get('settings');
+  const stored = await browser.storage.sync.get('settings');
   // Merge stored settings with defaults to ensure new fields are present
   if (stored.settings) {
     return { ...DEFAULT_SETTINGS, ...stored.settings };
@@ -114,7 +104,7 @@ async function getSettings() {
 }
 
 async function saveSettings(settings) {
-  await browserAPI.storage.sync.set({ settings });
+  await browser.storage.sync.set({ settings });
   return { success: true };
 }
 
@@ -168,6 +158,82 @@ async function getGraphName() {
   }
 }
 
+// Get Logseq user configuration including journal date format
+async function getLogseqConfig() {
+  const settings = await getSettings();
+  try {
+    const response = await fetch(`${settings.apiHost}/api`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiToken}`
+      },
+      body: JSON.stringify({
+        method: 'logseq.App.getUserConfigs'
+      })
+    });
+    
+    if (!response.ok) {
+      return { success: false, error: `HTTP ${response.status}` };
+    }
+    
+    const data = await response.json();
+    console.log('Logseq config:', data);
+    return { success: true, config: data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Format a date using Logseq's date format pattern
+function formatDateWithPattern(date, pattern) {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const daysLong = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthsLong = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  const dayOfWeek = date.getDay();
+  
+  // Get ordinal suffix for day
+  const getOrdinal = (n) => {
+    if (n >= 11 && n <= 13) return 'th';
+    switch (n % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  };
+  
+  // Replace patterns from longest to shortest to avoid partial replacements
+  let result = pattern;
+  
+  // Year patterns
+  result = result.replace(/yyyy/g, year.toString());
+  result = result.replace(/yy/g, year.toString().slice(-2));
+  
+  // Month patterns (order matters - longest first)
+  result = result.replace(/MMMM/g, monthsLong[month]);
+  result = result.replace(/MMM/g, months[month]);
+  result = result.replace(/MM/g, String(month + 1).padStart(2, '0'));
+  result = result.replace(/M(?!a|o)/g, String(month + 1)); // M but not followed by 'a' (Mar) or 'o' (Mon)
+  
+  // Day of week patterns (order matters - longest first)
+  result = result.replace(/EEEE/g, daysLong[dayOfWeek]);
+  result = result.replace(/EEE/g, days[dayOfWeek]);
+  result = result.replace(/E/g, days[dayOfWeek]);
+  
+  // Day patterns (order matters)
+  result = result.replace(/do/g, day + getOrdinal(day));
+  result = result.replace(/dd/g, String(day).padStart(2, '0'));
+  result = result.replace(/d(?!e|a)/g, day.toString()); // d but not followed by 'e' (Dec) or 'a' (day name)
+  
+  return result;
+}
+
 async function captureToLogseq(data) {
   const settings = await getSettings();
   const { content, format, pageUrl, pageTitle, highlightUrl } = data;
@@ -187,28 +253,22 @@ async function captureToLogseq(data) {
     if (settings.captureDestination === 'journal') {
       const today = new Date();
       
-      // Format based on user's journal format setting
-      const journalFormat = settings.journalFormat || 'MMM do, yyyy';
+      // Auto-detect journal format from Logseq configuration
+      const configResult = await getLogseqConfig();
+      let journalFormat = 'MMM do, yyyy'; // Default fallback
       
-      if (journalFormat === 'yyyy-MM-dd') {
-        // ISO format: 2025-12-02
-        targetPage = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      } else if (journalFormat === 'yyyy_MM_dd') {
-        // Underscore format: 2025_12_02
-        targetPage = `${today.getFullYear()}_${String(today.getMonth() + 1).padStart(2, '0')}_${String(today.getDate()).padStart(2, '0')}`;
-      } else if (journalFormat === 'MM-dd-yyyy') {
-        // US format: 12-02-2025
-        targetPage = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}-${today.getFullYear()}`;
-      } else if (journalFormat === 'dd-MM-yyyy') {
-        // EU format: 02-12-2025
-        targetPage = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
-      } else {
-        // Default Logseq format: "Dec 2nd, 2025" (MMM do, yyyy)
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const day = today.getDate();
-        const suffix = getDaySuffix(day);
-        targetPage = `${months[today.getMonth()]} ${day}${suffix}, ${today.getFullYear()}`;
+      if (configResult.success && configResult.config) {
+        // Logseq stores the format in preferredDateFormat
+        const detectedFormat = configResult.config.preferredDateFormat;
+        if (detectedFormat) {
+          journalFormat = detectedFormat;
+          console.log('Auto-detected journal format:', journalFormat);
+        }
       }
+      
+      // Format the date using the detected pattern
+      targetPage = formatDateWithPattern(today, journalFormat);
+      console.log('Target journal page:', targetPage);
     } else {
       targetPage = settings.capturePageName;
     }
@@ -252,7 +312,7 @@ async function captureToLogseq(data) {
         },
         body: JSON.stringify({
           method: 'logseq.Editor.createPage',
-          args: [targetPage, {}, { createFirstBlock: false, redirect: false }]
+          args: [targetPage, {}, { createFirstBlock: false, redirect: false, journal: settings.captureDestination === 'journal' }]
         })
       });
       
@@ -276,18 +336,12 @@ async function captureToLogseq(data) {
       const retryResult = await retryResponse.json();
       console.log('Retry result:', retryResult);
       
-      // Store the captured block locally
-      await storeCapuredBlock(retryResult, formattedContent, pageUrl, pageTitle, highlightUrl, targetPage, settings);
-      
       return { 
         success: true, 
         blockId: retryResult?.uuid,
         logseqUrl: await buildLogseqUrl(retryResult?.uuid, settings)
       };
     }
-    
-    // Store the captured block locally
-    await storeCapuredBlock(result, formattedContent, pageUrl, pageTitle, highlightUrl, targetPage, settings);
     
     return { 
       success: true, 
@@ -298,31 +352,6 @@ async function captureToLogseq(data) {
     console.error('Capture error:', error);
     return { success: false, error: error.message };
   }
-}
-
-function getDaySuffix(day) {
-  if (day >= 11 && day <= 13) return 'th';
-  switch (day % 10) {
-    case 1: return 'st';
-    case 2: return 'nd';
-    case 3: return 'rd';
-    default: return 'th';
-  }
-}
-
-async function storeCapuredBlock(result, formattedContent, pageUrl, pageTitle, highlightUrl, targetPage, settings) {
-  const capturedBlocks = await browserAPI.storage.local.get('capturedBlocks');
-  const blocks = capturedBlocks.capturedBlocks || [];
-  blocks.push({
-    uuid: result?.uuid || `local-${Date.now()}`,
-    content: formattedContent,
-    sourceUrl: pageUrl,
-    sourceTitle: pageTitle,
-    highlightUrl: highlightUrl,
-    capturedAt: new Date().toISOString(),
-    targetPage: targetPage
-  });
-  await browserAPI.storage.local.set({ capturedBlocks: blocks });
 }
 
 async function buildLogseqUrl(uuid, settings) {
@@ -372,35 +401,162 @@ async function getBlocksForUrl(url) {
   }
 }
 
-async function getCapturedBlocks(url) {
-  const capturedBlocks = await browserAPI.storage.local.get('capturedBlocks');
-  const blocks = capturedBlocks.capturedBlocks || [];
-  
-  // Filter blocks for this URL
-  const urlBlocks = blocks.filter(block => {
-    try {
-      const sourceUrl = new URL(block.sourceUrl).origin + new URL(block.sourceUrl).pathname;
-      const currentUrl = new URL(url).origin + new URL(url).pathname;
-      return sourceUrl === currentUrl;
-    } catch (e) {
-      return false;
-    }
-  });
-  
-  // Get graph name for x-callback URLs
+// Query Logseq graph for blocks with source property matching the URL
+async function getCapturedBlocksFromLogseq(url) {
   const settings = await getSettings();
-  const graphResult = await getGraphName();
-  const graphName = graphResult.graphName || settings.graphName;
   
-  // Add logseq URL to each block
-  const enrichedBlocks = urlBlocks.map(block => ({
-    ...block,
-    logseqUrl: block.uuid && !block.uuid.startsWith('local-') 
-      ? `logseq://graph/${graphName}?block-id=${block.uuid}` 
-      : null
-  }));
+  try {
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname;
+    
+    console.log('Searching Logseq for domain:', domain);
+    
+    // Search for the domain name
+    const response = await fetch(`${settings.apiHost}/api`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiToken}`
+      },
+      body: JSON.stringify({
+        method: 'logseq.App.search',
+        args: [domain]
+      })
+    });
+    
+    if (!response.ok) {
+      console.error('Logseq search failed:', response.status);
+      return { success: false, error: `HTTP ${response.status}`, blocks: [] };
+    }
+    
+    const data = await response.json();
+    console.log('Search result type:', typeof data, Array.isArray(data));
+    
+    // Handle the search result format
+    let searchBlocks = [];
+    if (Array.isArray(data)) {
+      // Direct array of results
+      searchBlocks = data.filter(item => item && typeof item === 'object');
+    } else if (data && typeof data === 'object') {
+      // Object with blocks property
+      searchBlocks = data.blocks || [];
+    }
+    
+    console.log('Total search results:', searchBlocks.length);
+    
+    // Get all blocks that have source:: with EXACT URL match
+    const blocks = [];
+    for (const block of searchBlocks) {
+      const content = block['block/content'] || block.content || '';
+      // Check for exact URL match in source:: property
+      if (content.includes('source::') && content.includes(url)) {
+        blocks.push(block);
+      }
+    }
+    
+    console.log('Blocks with exact URL match:', blocks.length);
+    
+    // Get graph name
+    const graphResult = await getGraphName();
+    const graphName = graphResult.graphName || settings.graphName;
+    
+    // Transform blocks
+    const enrichedBlocks = blocks.map(block => {
+      const content = block['block/content'] || block.content || '';
+      const pageName = block['block/page'] || block.page || '';
+      const uuid = block['block/uuid'] || block.uuid || '';
+      
+      return {
+        uuid: uuid,
+        content: content,
+        sourceUrl: url,
+        targetPage: typeof pageName === 'object' ? (pageName['block/original-name'] || pageName.name || '') : pageName,
+        logseqUrl: uuid ? `logseq://graph/${graphName}?block-id=${uuid}` : null,
+        highlightUrl: url,
+        capturedAt: null
+      };
+    });
+    
+    return { success: true, blocks: enrichedBlocks };
+  } catch (error) {
+    console.error('Error searching Logseq:', error);
+    return { success: false, error: error.message, blocks: [] };
+  }
+}
+
+// Get all blocks from a domain (for "Related" section)
+async function getRelatedBlocksFromDomain(url) {
+  const settings = await getSettings();
   
-  return { success: true, blocks: enrichedBlocks };
+  try {
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname;
+    
+    console.log('Getting related blocks from domain:', domain);
+    
+    // Search for the domain name
+    const response = await fetch(`${settings.apiHost}/api`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiToken}`
+      },
+      body: JSON.stringify({
+        method: 'logseq.App.search',
+        args: [domain]
+      })
+    });
+    
+    if (!response.ok) {
+      return { success: false, error: `HTTP ${response.status}`, blocks: [] };
+    }
+    
+    const data = await response.json();
+    
+    // Handle the search result format
+    let searchBlocks = [];
+    if (Array.isArray(data)) {
+      searchBlocks = data.filter(item => item && typeof item === 'object');
+    } else if (data && typeof data === 'object') {
+      searchBlocks = data.blocks || [];
+    }
+    
+    // Get all blocks that have source:: with this domain
+    const blocks = searchBlocks.filter(block => {
+      const content = block['block/content'] || block.content || '';
+      return content.includes('source::') && content.includes(domain);
+    });
+    
+    // Get graph name
+    const graphResult = await getGraphName();
+    const graphName = graphResult.graphName || settings.graphName;
+    
+    // Transform blocks
+    const enrichedBlocks = blocks.map(block => {
+      const content = block['block/content'] || block.content || '';
+      const uuid = block['block/uuid'] || block.uuid || '';
+      
+      return {
+        uuid: uuid,
+        content: content,
+        logseqUrl: uuid ? `logseq://graph/${graphName}?block-id=${uuid}` : null
+      };
+    });
+    
+    return { success: true, blocks: enrichedBlocks };
+  } catch (error) {
+    console.error('Error getting related blocks:', error);
+    return { success: false, error: error.message, blocks: [] };
+  }
+}
+
+// Extract highlight URL from block content if present
+function extractHighlightUrl(content) {
+  const match = content.match(/source::\s*(\S+)/);
+  if (match) {
+    return match[1];
+  }
+  return null;
 }
 
 async function searchBlocks(query) {

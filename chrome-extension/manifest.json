@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Logseq Helper",
+  "name": "Logseqy",
   "version": "1.0.0",
-  "description": "A Chrome extension to capture text to Logseq and view related blocks",
+  "description": "Capture text to Logseq and view related blocks from any webpage",
   "permissions": [
     "storage",
     "activeTab",
@@ -21,17 +21,17 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
     }
   },
   "icons": {
-    "16": "icons/icon16.png",
-    "32": "icons/icon32.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   },
   "content_scripts": [
     {
@@ -47,7 +47,7 @@
         "default": "Ctrl+Shift+L",
         "mac": "Command+Shift+L"
       },
-      "description": "Toggle Logseq Helper overlay"
+      "description": "Toggle Logseqy overlay"
     }
   },
   "web_accessible_resources": [
